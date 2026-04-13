@@ -1,0 +1,12 @@
+{
+  "name": "medflow-ai-agent",
+  "version": "1.0.0",
+  "description": "Healthcare AI automation agent — HighLevel + GPT-4o",
+  "private": true,
+  "dependencies": {
+    "openai": "^4.52.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

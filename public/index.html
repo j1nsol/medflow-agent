@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MedFlow AI — Healthcare Automation Agent</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f9fc;
+    --surface: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --text-2: #6b7280;
+    --text-3: #9ca3af;
+    --blue: #1d4ed8;
+    --blue-light: #eff6ff;
+    --blue-border: #bfdbfe;
+    --green: #15803d;
+    --green-light: #f0fdf4;
+    --green-border: #bbf7d0;
+    --amber: #92400e;
+    --amber-light: #fffbeb;
+    --red: #991b1b;
+    --red-light: #fef2f2;
+    --red-border: #fecaca;
+    --purple: #5b21b6;
+    --purple-light: #f5f3ff;
+    --purple-border: #ddd6fe;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+  .logo { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .header-sub { font-size: 12px; color: var(--text-2); }
+
+  .tabs { display: flex; gap: 2px; background: var(--border); padding: 3px; border-radius: var(--radius-sm); }
+  .tab { padding: 6px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; background: transparent; color: var(--text-2); transition: all 0.15s; }
+  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  .page { display: none; max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+  .page.active { display: block; }
+
+  /* Chat page */
+  .chat-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; height: calc(100vh - 56px - 3rem); }
+  .chat-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .sidebar-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
+  .contact-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; cursor: pointer; transition: all 0.15s; }
+  .contact-card:hover, .contact-card.active { border-color: var(--blue); background: var(--blue-light); }
+  .contact-name { font-weight: 500; font-size: 13px; margin-bottom: 2px; }
+  .contact-meta { font-size: 11px; color: var(--text-2); }
+  .contact-tag { display: inline-block; font-size: 10px; font-weight: 500; padding: 1px 7px; border-radius: 20px; margin-top: 4px; }
+  .tag-reactivation { background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-border); }
+  .tag-new_lead { background: var(--green-light); color: var(--green); border: 1px solid var(--green-border); }
+  .tag-missed_appointment { background: var(--amber-light); color: var(--amber); border: 1px solid #fcd34d; }
+
+  .chat-main { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; overflow: hidden; }
+  .chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--blue-light); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; color: var(--blue); flex-shrink: 0; }
+  .chat-contact-info { flex: 1; }
+  .chat-contact-name { font-weight: 500; font-size: 14px; }
+  .chat-contact-meta { font-size: 12px; color: var(--text-2); }
+  .intent-badge { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
+  .intent-engage { background: var(--blue-light); color: var(--blue); }
+  .intent-book { background: var(--green-light); color: var(--green); }
+  .intent-stop { background: var(--red-light); color: var(--red); }
+
+  .messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 75%; }
+  .msg.user { align-self: flex-end; }
+  .msg.agent { align-self: flex-start; }
+  .msg-bubble { padding: 10px 14px; border-radius: 16px; font-size: 13px; line-height: 1.6; }
+  .msg.user .msg-bubble { background: var(--blue); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.agent .msg-bubble { background: var(--bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; color: var(--text); }
+  .msg-meta { font-size: 11px; color: var(--text-3); margin-top: 3px; padding: 0 4px; }
+  .msg.user .msg-meta { text-align: right; }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 12px 14px; }
+  .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); animation: bounce 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)} }
+
+  .chat-input-row { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  .chat-input-row input { flex: 1; padding: 9px 14px; border: 1px solid var(--border); border-radius: 24px; font-size: 13px; outline: none; background: var(--bg); color: var(--text); }
+  .chat-input-row input:focus { border-color: var(--blue); background: var(--surface); }
+  .send-btn { padding: 9px 18px; background: var(--blue); color: #fff; border: none; border-radius: 24px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .send-btn:hover { background: #1e40af; }
+  .send-btn:disabled { background: var(--border); color: var(--text-3); cursor: not-allowed; }
+
+  /* Webhook page */
+  .webhook-layout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .panel-head { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 500; font-size: 13px; display: flex; align-items: center; justify-content: space-between; }
+  .panel-head small { font-size: 11px; font-weight: 400; color: var(--text-2); }
+  .form-body { padding: 1rem; display: flex; flex-direction: column; gap: 10px; }
+  .field label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; font-weight: 500; }
+  .field input, .field select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); color: var(--text); outline: none; }
+  .field input:focus, .field select:focus { border-color: var(--blue); }
+  .fire-btn { width: 100%; padding: 10px; background: var(--blue); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; letter-spacing: 0.02em; }
+  .fire-btn:hover { background: #1e40af; }
+  .fire-btn:disabled { background: var(--border); color: var(--text-3); cursor: not-allowed; }
+
+  .pipeline { padding: 1rem; }
+  .pipe-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; transition: opacity 0.3s; opacity: 0.35; }
+  .pipe-step.active { opacity: 1; }
+  .step-num { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text-3); flex-shrink: 0; transition: all 0.3s; background: var(--surface); }
+  .step-num.done { background: var(--green-light); border-color: var(--green-border); color: var(--green); }
+  .step-num.running { background: var(--blue-light); border-color: var(--blue-border); color: var(--blue); animation: pulse 1s infinite; }
+  .step-num.blocked { background: var(--red-light); border-color: var(--red-border); color: var(--red); }
+  .step-body { flex: 1; padding-top: 3px; }
+  .step-title { font-size: 13px; font-weight: 500; margin-bottom: 1px; }
+  .step-detail { font-size: 12px; color: var(--text-2); }
+
+  .result-log { padding: 0 1rem 1rem; display: flex; flex-direction: column; gap: 10px; max-height: 500px; overflow-y: auto; }
+  .log-card { border-radius: var(--radius-sm); border: 1px solid var(--border); overflow: hidden; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
+  .log-card-head { padding: 7px 12px; font-size: 11px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .log-card-head.blue { background: var(--blue-light); color: var(--blue); }
+  .log-card-head.green { background: var(--green-light); color: var(--green); }
+  .log-card-head.red { background: var(--red-light); color: var(--red); }
+  .log-card-head.purple { background: var(--purple-light); color: var(--purple); }
+  .log-card-head.amber { background: var(--amber-light); color: var(--amber); }
+  .log-card-body { padding: 10px 12px; font-size: 12px; line-height: 1.7; color: var(--text-2); }
+  .log-card-body strong { color: var(--text); font-weight: 500; }
+  .sms-text { background: var(--green-light); border: 1px solid var(--green-border); border-radius: var(--radius-sm); padding: 8px 12px; margin-top: 6px; color: #166534; font-size: 12px; line-height: 1.6; }
+  .voice-text { background: var(--purple-light); border: 1px solid var(--purple-border); border-radius: var(--radius-sm); padding: 8px 12px; margin-top: 6px; color: var(--purple); font-size: 12px; line-height: 1.6; }
+  .empty-state { text-align: center; padding: 2rem 1rem; color: var(--text-3); font-size: 13px; }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+  .metric-label { font-size: 11px; color: var(--text-2); margin-bottom: 4px; font-weight: 500; }
+  .metric-val { font-size: 24px; font-weight: 600; }
+  .metric-val.blue { color: var(--blue); }
+  .metric-val.green { color: var(--green); }
+  .metric-val.red { color: var(--red); }
+
+  @media (max-width: 720px) {
+    .chat-layout, .webhook-layout { grid-template-columns: 1fr; }
+    .chat-layout { height: auto; }
+    .chat-sidebar { display: none; }
+    .metrics-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    MedFlow AI Agent
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('chat', this)">Live Chat</button>
+    <button class="tab" onclick="showPage('webhook', this)">Webhook Simulator</button>
+  </div>
+  <div class="header-sub">Miami Healthcare Automation</div>
+</header>
+
+<!-- CHAT PAGE -->
+<div class="page active" id="page-chat">
+  <div class="chat-layout">
+    <div class="chat-sidebar">
+      <div>
+        <div class="sidebar-label">Contacts</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px" id="contact-list"></div>
+      </div>
+    </div>
+    <div class="chat-main">
+      <div class="chat-header">
+        <div class="avatar" id="chat-avatar">MG</div>
+        <div class="chat-contact-info">
+          <div class="chat-contact-name" id="chat-name">Maria Gonzalez</div>
+          <div class="chat-contact-meta" id="chat-meta">+1 (305) 555-0182 · Reactivation</div>
+        </div>
+        <div class="intent-badge intent-engage" id="intent-badge">Engaging</div>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="chat-input-row">
+        <input id="chat-input" placeholder="Type a message as the patient..." onkeydown="if(event.key==='Enter')sendMessage()" />
+        <button class="send-btn" id="send-btn" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WEBHOOK PAGE -->
+<div class="page" id="page-webhook">
+  <div class="metrics-row">
+    <div class="metric-card"><div class="metric-label">Webhooks fired</div><div class="metric-val blue" id="m-hooks">0</div></div>
+    <div class="metric-card"><div class="metric-label">SMS generated</div><div class="metric-val green" id="m-sms">0</div></div>
+    <div class="metric-card"><div class="metric-label">Voice calls</div><div class="metric-val green" id="m-voice">0</div></div>
+    <div class="metric-card"><div class="metric-label">DND blocked</div><div class="metric-val red" id="m-dnd">0</div></div>
+  </div>
+  <div class="webhook-layout">
+    <div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-head">Trigger webhook <small>simulate HighLevel</small></div>
+        <div class="form-body">
+          <div class="field"><label>Contact name</label><input id="w-name" value="Maria Gonzalez" /></div>
+          <div class="field"><label>Phone</label><input id="w-phone" value="+1 (305) 555-0182" /></div>
+          <div class="field"><label>HighLevel tag</label>
+            <select id="w-tag">
+              <option value="reactivation">Reactivation</option>
+              <option value="missed_appointment">Missed Appointment</option>
+              <option value="new_lead">New Lead</option>
+            </select>
+          </div>
+          <div class="field"><label>Contact reply (optional)</label>
+            <select id="w-reply">
+              <option value="">— No reply —</option>
+              <option value="Book">Book</option>
+              <option value="Stop">Stop</option>
+              <option value="I have a question">I have a question</option>
+            </select>
+          </div>
+          <div class="field"><label>DND status</label>
+            <select id="w-dnd">
+              <option value="false">Not DND</option>
+              <option value="true">DND — opted out</option>
+            </select>
+          </div>
+          <button class="fire-btn" id="fire-btn" onclick="fireWebhook()">Fire Webhook →</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">Pipeline steps</div>
+        <div class="pipeline" id="pipeline">
+          <div class="pipe-step" id="ps-1"><div class="step-num" id="pn-1">1</div><div class="step-body"><div class="step-title">Webhook received</div><div class="step-detail" id="pd-1">Awaiting HighLevel event...</div></div></div>
+          <div class="pipe-step" id="ps-2"><div class="step-num" id="pn-2">2</div><div class="step-body"><div class="step-title">DND check</div><div class="step-detail" id="pd-2">Verify opt-out status</div></div></div>
+          <div class="pipe-step" id="ps-3"><div class="step-num" id="pn-3">3</div><div class="step-body"><div class="step-title">Reply routing</div><div class="step-detail" id="pd-3">Classify intent</div></div></div>
+          <div class="pipe-step" id="ps-4"><div class="step-num" id="pn-4">4</div><div class="step-body"><div class="step-title">GPT-4o SMS generation</div><div class="step-detail" id="pd-4">Compose personalized message</div></div></div>
+          <div class="pipe-step" id="ps-5"><div class="step-num" id="pn-5">5</div><div class="step-body"><div class="step-title">Actions executed</div><div class="step-detail" id="pd-5">SMS sent / voice triggered</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">Agent output log <small id="log-count">0 events</small></div>
+      <div class="result-log" id="result-log">
+        <div class="empty-state" id="empty-log">Fire a webhook to see the agent run in real time.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var CONTACTS=[
+  {name:"Maria Gonzalez",phone:"+1 (305) 555-0182",tag:"reactivation",initials:"MG"},
+  {name:"Carlos Rivera",phone:"+1 (305) 555-0247",tag:"missed_appointment",initials:"CR"},
+  {name:"Sofia Mendez",phone:"+1 (305) 555-0391",tag:"new_lead",initials:"SM"},
+  {name:"James Okafor",phone:"+1 (305) 555-0455",tag:"reactivation",initials:"JO"},
+];
+
+var currentContact=CONTACTS[0];
+var messageHistory=[];
+var wMetrics={hooks:0,sms:0,voice:0,dnd:0};
+var logEvents=0;
+
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function buildContactList(){
+  var list=document.getElementById('contact-list');
+  list.innerHTML='';
+  CONTACTS.forEach(function(c,i){
+    var tagLabel={reactivation:'Reactivation',missed_appointment:'Missed Appt',new_lead:'New Lead'}[c.tag];
+    var el=document.createElement('div');
+    el.className='contact-card'+(i===0?' active':'');
+    el.innerHTML='<div class="contact-name">'+c.name+'</div><div class="contact-meta">'+c.phone+'</div><span class="contact-tag tag-'+c.tag+'">'+tagLabel+'</span>';
+    el.onclick=function(){
+      document.querySelectorAll('.contact-card').forEach(function(x){x.classList.remove('active');});
+      el.classList.add('active');
+      selectContact(c);
+    };
+    list.appendChild(el);
+  });
+}
+
+function selectContact(c){
+  currentContact=c;
+  messageHistory=[];
+  document.getElementById('chat-avatar').textContent=c.initials;
+  document.getElementById('chat-name').textContent=c.name;
+  var tagLabel={reactivation:'Reactivation',missed_appointment:'Missed Appt',new_lead:'New Lead'}[c.tag];
+  document.getElementById('chat-meta').textContent=c.phone+' · '+tagLabel;
+  document.getElementById('messages').innerHTML='';
+  document.getElementById('intent-badge').className='intent-badge intent-engage';
+  document.getElementById('intent-badge').textContent='Engaging';
+  addAgentMessage("Hi! I'm the MedFlow AI agent for Miami Care Clinic. How can I help you today, "+c.name.split(' ')[0]+"?");
+}
+
+function addUserMessage(text){
+  var msgs=document.getElementById('messages');
+  var d=document.createElement('div');
+  d.className='msg user';
+  d.innerHTML='<div class="msg-bubble">'+escHtml(text)+'</div><div class="msg-meta">'+ts()+'</div>';
+  msgs.appendChild(d);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function addAgentMessage(text){
+  var msgs=document.getElementById('messages');
+  var d=document.createElement('div');
+  d.className='msg agent';
+  d.innerHTML='<div class="msg-bubble">'+escHtml(text)+'</div><div class="msg-meta">MedFlow AI · '+ts()+'</div>';
+  msgs.appendChild(d);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function addTyping(){
+  var msgs=document.getElementById('messages');
+  var d=document.createElement('div');
+  d.className='msg agent';
+  d.id='typing-indicator';
+  d.innerHTML='<div class="msg-bubble typing"><span></span><span></span><span></span></div>';
+  msgs.appendChild(d);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function removeTyping(){
+  var t=document.getElementById('typing-indicator');
+  if(t)t.remove();
+}
+
+async function sendMessage(){
+  var input=document.getElementById('chat-input');
+  var text=input.value.trim();
+  if(!text)return;
+  input.value='';
+  var btn=document.getElementById('send-btn');
+  btn.disabled=true;
+
+  addUserMessage(text);
+  messageHistory.push({role:'user',content:text});
+  addTyping();
+
+  try{
+    var res=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:messageHistory})
+    });
+    var data=await res.json();
+    removeTyping();
+    if(data.reply){
+      addAgentMessage(data.reply);
+      messageHistory.push({role:'assistant',content:data.reply});
+      if(data.intent){
+        var badge=document.getElementById('intent-badge');
+        badge.className='intent-badge intent-'+data.intent;
+        badge.textContent={engage:'Engaging',book:'Booking',stop:'Opted Out'}[data.intent]||'Engaging';
+      }
+    } else {
+      addAgentMessage("I'm having trouble connecting right now. Please call us at (305) 555-0100.");
+    }
+  } catch(e){
+    removeTyping();
+    addAgentMessage("Connection error. Please try again or call (305) 555-0100.");
+  }
+  btn.disabled=false;
+  input.focus();
+}
+
+function delay(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+function setStep(n,state,detail){
+  document.getElementById('ps-'+n).classList.add('active');
+  var num=document.getElementById('pn-'+n);
+  num.className='step-num '+state;
+  num.textContent=state==='done'?'✓':state==='blocked'?'✕':n;
+  if(detail)document.getElementById('pd-'+n).textContent=detail;
+}
+
+function resetPipeline(){
+  for(var i=1;i<=5;i++){
+    var ps=document.getElementById('ps-'+i);
+    ps.classList.remove('active');
+    document.getElementById('pn-'+i).className='step-num';
+    document.getElementById('pn-'+i).textContent=i;
+  }
+  document.getElementById('pd-1').textContent='Awaiting HighLevel event...';
+  document.getElementById('pd-2').textContent='Verify opt-out status';
+  document.getElementById('pd-3').textContent='Classify intent';
+  document.getElementById('pd-4').textContent='Compose personalized message';
+  document.getElementById('pd-5').textContent='SMS sent / voice triggered';
+}
+
+function addLog(colorClass,headText,bodyHtml){
+  logEvents++;
+  document.getElementById('log-count').textContent=logEvents+' event'+(logEvents!==1?'s':'');
+  var empty=document.getElementById('empty-log');
+  if(empty)empty.remove();
+  var log=document.getElementById('result-log');
+  var card=document.createElement('div');
+  card.className='log-card';
+  card.innerHTML='<div class="log-card-head '+colorClass+'"><span>'+headText+'</span><span>'+ts()+'</span></div><div class="log-card-body">'+bodyHtml+'</div>';
+  log.insertBefore(card,log.firstChild);
+}
+
+function updateMetrics(){
+  document.getElementById('m-hooks').textContent=wMetrics.hooks;
+  document.getElementById('m-sms').textContent=wMetrics.sms;
+  document.getElementById('m-voice').textContent=wMetrics.voice;
+  document.getElementById('m-dnd').textContent=wMetrics.dnd;
+}
+
+async function fireWebhook(){
+  var btn=document.getElementById('fire-btn');
+  btn.disabled=true; btn.textContent='Running...';
+  resetPipeline();
+
+  var name=document.getElementById('w-name').value||'Patient';
+  var phone=document.getElementById('w-phone').value;
+  var tag=document.getElementById('w-tag').value;
+  var reply=document.getElementById('w-reply').value;
+  var dnd=document.getElementById('w-dnd').value==='true';
+
+  wMetrics.hooks++;
+  setStep(1,'running','Parsing HighLevel payload...');
+  await delay(500);
+
+  try{
+    var res=await fetch('/api/webhook',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contact_name:name,phone:phone,tag:tag,reply:reply||undefined,dnd:dnd})
+    });
+    var data=await res.json();
+
+    var tagLabels={reactivation:'Reactivation',missed_appointment:'Missed Appointment',new_lead:'New Lead'};
+    addLog('blue','↗ Webhook received — HighLevel',
+      '<strong>Contact:</strong> '+escHtml(name)+' &nbsp;·&nbsp; <strong>Phone:</strong> '+escHtml(phone)+'<br><strong>Tag:</strong> '+tagLabels[tag]+' &nbsp;·&nbsp; <strong>Reply:</strong> '+(reply||'none')+' &nbsp;·&nbsp; <strong>DND:</strong> '+dnd
+    );
+    setStep(1,'done','Contact: '+name+' · Tag: '+tagLabels[tag]);
+    await delay(600);
+
+    if(data.status==='blocked'){
+      wMetrics.dnd++;
+      setStep(2,'blocked','Contact is DND — pipeline halted');
+      for(var i=3;i<=5;i++)setStep(i,'done','Skipped');
+      addLog('red','⛔ DND blocked — pipeline halted',
+        '<strong>'+escHtml(name)+'</strong> is on the DND registry. No outreach sent. Compliance maintained.<br>CRM updated with tag: <strong>DND_BLOCKED</strong>'
+      );
+    } else {
+      setStep(2,'done','Clear — contact eligible');
+      await delay(500);
+
+      var intentLabel={outreach:'First-touch outreach',book:'Booking intent',stop:'Opt-out intent',question:'Question intent'}[data.intent]||data.intent;
+      setStep(3,'done','Intent: '+intentLabel);
+      addLog('amber','→ Reply routed','<strong>Intent classified:</strong> '+intentLabel);
+      await delay(600);
+
+      setStep(4,'running','Calling GPT-4o...');
+      await delay(400);
+      wMetrics.sms++;
+      setStep(4,'done','Message generated');
+      addLog('green','✉ GPT-4o SMS generated',
+        '<strong>Model:</strong> gpt-4o<br><div class="sms-text">'+escHtml(data.sms.body)+'</div>'
+      );
+      await delay(600);
+
+      if(data.voice){
+        wMetrics.voice++;
+        addLog('purple','📞 AI voice call triggered',
+          '<strong>To:</strong> '+escHtml(phone)+'<br><div class="voice-text">'+escHtml(data.voice.script)+'</div>'
+        );
+        setStep(5,'done','SMS sent + voice call placed');
+      } else {
+        setStep(5,'done','SMS delivered to '+phone);
+        addLog('green','✔ SMS delivered','Message sent to <strong>'+escHtml(phone)+'</strong>. Agent monitoring for reply.');
+      }
+    }
+  } catch(e){
+    setStep(1,'blocked','Connection error — is the server running?');
+    addLog('red','Connection error',e.message||'Could not reach /api/webhook');
+  }
+
+  updateMetrics();
+  btn.disabled=false; btn.textContent='Fire Webhook →';
+}
+
+function ts(){return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+function escHtml(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+buildContactList();
+selectContact(CONTACTS[0]);
+</script>
+</body>
+</html>
